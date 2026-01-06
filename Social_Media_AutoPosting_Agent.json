@@ -1,0 +1,861 @@
+{
+  "name": "Social_Media_AutoPosting_Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1760,
+        352
+      ],
+      "id": "3639e0a5-0ed1-4ce4-a473-91baa6c643fe",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c51e5895-e0ec-4e0e-800c-d94e6e0a646a",
+              "name": "title",
+              "value": "={{ $('AI Agent').item.json.output.title }}",
+              "type": "string"
+            },
+            {
+              "id": "e63adc38-023c-4970-a3e2-15bbfcdf90d7",
+              "name": "summary",
+              "value": "={{ $('AI Agent').item.json.output.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "340b2a67-111f-47d6-911f-17383e34d0a3",
+              "name": "hashtags",
+              "value": "={{ $('AI Agent').item.json.output.hashtags }}",
+              "type": "string"
+            },
+            {
+              "id": "3d909f09-e070-4ec5-a24a-1eaba3c0a92b",
+              "name": "node",
+              "value": "<INSTAGRAM_OR_PAGE_ID>",
+              "type": "string"
+            },
+            {
+              "id": "f08bd59b-013d-4b5f-ad26-a46300fd9678",
+              "name": "url",
+              "value": "={{ $json.url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -544,
+        352
+      ],
+      "id": "3fd07b3e-87e1-4e2a-b835-917af1e67e8e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v22.0",
+        "node": "={{ $json.node }}",
+        "edge": "media",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "image_url",
+                "value": "={{ $json.url }}"
+              },
+              {
+                "name": "caption",
+                "value": "={{ $json.title }}\n\n{{ $json.summary }}\n\n{{ $json.hashtags }}"
+              },
+              {
+                "name": "node",
+                "value": "={{ $json.node }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bcd364ea-6778-4953-9eb9-6c16dd13076e",
+      "name": "Facebook Graph API",
+      "retryOnFail": false,
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "<FACEBOOK_CREDENTIAL_ID>",
+          "name": "Facebook Graph account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v22.0",
+        "node": "={{ $('Edit Fields').item.json.node }}",
+        "edge": "media_publish",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "image_url",
+                "value": "={{ $('Edit Fields').item.json.url }}"
+              },
+              {
+                "name": "caption",
+                "value": "={{ $('Edit Fields').item.json.title }}\n\n{{ $('Edit Fields').item.json.summary }}\n\n{{ $('Edit Fields').item.json.hashtags }}"
+              },
+              {
+                "name": "creation_id",
+                "value": "={{ $json.id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        288,
+        0
+      ],
+      "id": "eefafa87-f986-431a-96b0-3b03594b1c0a",
+      "name": "Facebook Graph API1",
+      "retryOnFail": true,
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "<FACEBOOK_CREDENTIAL_ID>",
+          "name": "Facebook Graph account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.articles[0] }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are an AI news summarizer and social media content generator.\n\nInput:{{ $json.articles[0].description }}\n\nTasks:\n1. Generate a concise factual title (max 12 words).\n2. Generate a short factual summary (30–60 words).\n3. Generate a short AI-friendly image prompt based on the article content. \n   - The image prompt should describe the main scene or concept visually. \n   - Use it directly in AI image generators like DALL·E, Stable Diffusion, or Gemini Image.\n4. Generate 3–7 relevant hashtags based on the article content.\n\nOutput Rules:\n- Output ONLY a JSON object with keys: \"title\", \"summary\", \"imagePrompt\", \"hashtags\".\n- Do NOT include explanations, markdown, or extra text.\n- Ensure content is factual, concise, and professional.\n- The `imagePrompt` field must always be filled with a descriptive visual prompt.\n- Hashtags should start with # and be relevant.\n\nExample Input:\n\"Artificial Intelligence technology is transforming industries worldwide. Companies are adopting AI-driven tools to increase efficiency, automate tasks, and innovate.\"\n\nExample Output:\n{\n  \"title\": \"AI Technology Reshapes Global Industries\",\n  \"summary\": \"Artificial Intelligence is revolutionizing industries worldwide. Companies implement AI tools to boost efficiency and innovation. Rapid growth in AI applications is predicted across multiple sectors.\",\n  \"imagePrompt\": \"A modern office with humans and robots collaborating, representing AI transforming global industries, futuristic, digital art, realistic, bright colors\",\n  \"hashtags\": [\"#AI\", \"#Technology\", \"#Innovation\", \"#Automation\", \"#MachineLearning\"]\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1184,
+        352
+      ],
+      "id": "81a2a7d9-73cb-47e9-a91d-dc48b2b9e3c1",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "me",
+        "edge": "photos",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "message",
+                "value": "={{ $json.title }}\n\n{{ $json.summary }}\n\n{{ $json.hashtags }}"
+              },
+              {
+                "name": "url",
+                "value": "={{ $json.url }}"
+              },
+              {
+                "name": "access_token",
+                "value": "EAAXwZCXACKIUBP8kUYl1CxUkAZAkUBpDV1VOjVpk4duR1ntHDaIKI1J4WiZCTpZBfmKmiWXf1UPZAKepROEixvzsWLYd4v63uFBfbK5w6r9nTcXJmHGQI64MNqjaZBUXv74tCZABelHOcqwZA0NA8RwXS0SV4ovKPUZCBM073LuAXeD22wJw4jxfuZBoTwHe9mtq1cTE8ZD"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "id": "652aee85-8351-42a5-9c42-84212b25750d",
+      "name": "Facebook Graph API2",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "<FACEBOOK_CREDENTIAL_ID>",
+          "name": "Facebook Graph account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.output.summary }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        384,
+        448
+      ],
+      "id": "4a1f5fad-e3cc-469b-9cb8-0781346bd7f3",
+      "name": "Create Tweet",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "<TWITTER_OAUTH_ID>",
+          "name": "X account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.summary }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are an AI news summarizer.\n\nInput: {{ $json.summary }}\nTask:\n1. Generate a concise factual title (max 12 words).\n2. Generate a short factual summary (30–60 words) summarizing the article.\n3. Rephrase the summary uniquely each time so that it is different from any previous summaries.\n4. Ensure the content is factual and professional.\n\nOutput Rules:\n- Output ONLY a JSON object with keys: \"title\" and \"summary\".\n- Do NOT include hashtags, markdown, or extra text.\n\nExample Output:\n{\n  \"title\": \"AI Transforms Global Retail Experience\",\n  \"summary\": \"Visual search is changing the way people shop online. By restoring the joy of discovery, especially for Gen Z, e-commerce becomes more engaging. Retailers use AI tools to make shopping feel personal and innovative.\"\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -16,
+        448
+      ],
+      "id": "7d7d6202-8498-4f89-a171-1a46027841c7",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "200"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -1120,
+        560
+      ],
+      "id": "7f696e0a-00a2-4cab-8cdd-66086c1394f1",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        560
+      ],
+      "id": "f82fa9ec-3cdb-4f40-b7fb-d4d6fe1a4805",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "<GEMINI_API_ID>",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"title\": \"string\",\n  \"summary\": \"string\",\n  \"imagePrompt\": \"string\",\n  \"hashtags\": \"array\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -976,
+        560
+      ],
+      "id": "feae3366-dbcc-4cbe-afb7-f54585161906",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"title\": \"string\",\n  \"summary\": \"string\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        656
+      ],
+      "id": "ef7da76d-a810-4ee0-857b-3369066439f2",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "prompt": "={{ $json.output.imagePrompt }}",
+        "options": {
+          "returnImageUrls": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        352
+      ],
+      "id": "7ab33146-c8a4-443b-a310-5c50aa043046",
+      "name": "Generate an image",
+      "credentials": {
+        "openAiApi": {
+          "id": "<OPENAI_API_ID>",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "323103310228@gvpce.ac.in",
+        "subject": "Your Instagram Post Has Been Successfully Published!",
+        "emailType": "text",
+        "message": "=Hello Pavan,\n\nYour Instagram post has been successfully published!\n\nTitle: {{ $('Edit Fields').item.json.title }}\nSummary:\n{{ $('Edit Fields').item.json.summary }}\n\nImage Link:\n{{ $('Edit Fields').item.json.url }}\n\nYou can click the link to view or download the image.\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        496,
+        0
+      ],
+      "id": "2e41ffd4-0718-4c0b-b221-3ffef2e3f30a",
+      "name": "Send a message",
+      "webhookId": "8dd52fad-67ee-427d-b814-3dd2a948ff6a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JCoXOHf5tg5XFfIw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "323103310228@gvpce.ac.in",
+        "subject": "=Your Facebook Post has Been Successfully Published!",
+        "message": "=<!DOCTYPE html>\n<html>\n  <body>\n    <p>Hello Pavan,</p>\n\n    <p>Your Facebook post has been <strong>successfully published!</strong></p>\n\n    <p><strong>Title:</strong> {{ $('Edit Fields').item.json.title }}</p>\n    <p><strong>Summary:</strong><br>{{ $('Edit Fields').item.json.summary }}</p>\n\n    <p><strong>Image Link:</strong> <a href=\"{{ $('Edit Fields').item.json.url }}\"</a></p>\n\n  </body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        192
+      ],
+      "id": "d6ad2034-9c67-4d12-94bf-67797c422a77",
+      "name": "Send a message1",
+      "webhookId": "65d038cd-4d11-4407-9a1f-74913f7f360f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JCoXOHf5tg5XFfIw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "323103310228@gvpce.ac.in",
+        "subject": "=Your X Post has Been Successfully Published!",
+        "message": "=<!DOCTYPE html>\n<html>\n  <body>\n    <p>Hello Pavan,</p>\n\n    <p>Your X post has been <strong>successfully published!</strong></p>\n\n    <p><strong>Summary:</strong><br>{{ $('Edit Fields').item.json.summary }}</p>\n\n  </body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        592,
+        448
+      ],
+      "id": "35bfeff1-dc56-47f9-bbf2-36006860cc08",
+      "name": "Send a message2",
+      "webhookId": "fc55c6ab-f47c-47cf-843c-14fd30932a7c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JCoXOHf5tg5XFfIw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "323103310228@gvpce.ac.in",
+        "subject": "=Your Linkedin Post has Been Successfully Published!",
+        "message": "=<!DOCTYPE html>\n<html>\n  <body>\n    <p>Hello Pavan,</p>\n\n    <p>Your Linkedin post has been <strong>successfully published!</strong></p>\n\n    <p><strong>Title:</strong> {{ $('Edit Fields').item.json.title }}</p>\n    <p><strong>Summary:</strong><br>{{ $('Edit Fields').item.json.summary }}</p>\n\n    <p><strong>{{ $('Edit Fields').item.json.hashtags }}</strong></p>\n\n  </body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        816
+      ],
+      "id": "c365df93-8494-44ef-b5a8-fb1108f7604f",
+      "name": "Send a message3",
+      "webhookId": "fc55c6ab-f47c-47cf-843c-14fd30932a7c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JCoXOHf5tg5XFfIw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/assets?action=registerUpload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <LINKEDIN_ACCESS_TOKEN>"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"registerUploadRequest\": {\n    \"recipes\": [\n      \"urn:li:digitalmediaRecipe:feedshare-image\"\n    ],\n    \"owner\": \"urn:li:person:{{ $json.sub }}\",\n    \"serviceRelationships\": [\n      {\n        \"relationshipType\": \"OWNER\",\n        \"identifier\": \"urn:li:userGeneratedContent\"\n      }\n    ]\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        816
+      ],
+      "id": "532539f3-913a-41bd-acf4-a9a30601c6da",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ytJLy2lwm03tg78a",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <HUGGINGFACE_API_TOKEN>"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "accept",
+              "value": "image/png"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "inputs",
+              "value": "={{ $('AI Agent').item.json.output.imagePrompt }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {}
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        816
+      ],
+      "id": "e8abecb4-8a4d-4b98-8fba-a63ba46f1389",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"author\": \"urn:li:person:{{ $('Fetch account1').item.json.sub }}\",\n  \"lifecycleState\": \"PUBLISHED\",\n  \"specificContent\": {\n    \"com.linkedin.ugc.ShareContent\": {\n      \"shareCommentary\": {\n        \"text\": \"🚀 TITLE {{ $('Edit Fields').item.json.title }}:- \\n\\nSUMMARY :- {{ $('Edit Fields').item.json.summary }}\\n\\n{{ $('Edit Fields').item.json.hashtags }}\"\n      },\n      \"shareMediaCategory\": \"IMAGE\",\n      \"media\": [\n        {\n          \"status\": \"READY\",\n          \"description\": {\n            \"text\": \"Image Description\"\n          },\n          \"media\": \"{{ $('HTTP Request').item.json.value.asset }}\",\n          \"title\": {\n            \"text\": \"data\"\n          }\n        }\n      ]\n    }\n  },\n  \"visibility\": {\n    \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\"\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        768,
+        816
+      ],
+      "id": "16c657aa-2b73-4c5a-a2cb-c5a9c216a79b",
+      "name": "HTTP Request2",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ytJLy2lwm03tg78a",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/v2/userinfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        816
+      ],
+      "id": "bb7869f0-6cfc-4f51-b6cf-f5c10e186daf",
+      "name": "Fetch account1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ytJLy2lwm03tg78a",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json[\"value\"][\"uploadMechanism\"][\"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest\"][\"uploadUrl\"] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "image/jpeg"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        576,
+        816
+      ],
+      "id": "f3078547-4722-43f3-be79-ee3344977bc4",
+      "name": "Create Post1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ytJLy2lwm03tg78a",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://newsapi.org/v2/everything?\nq=AI\n&language=en\n&sortBy=publishedAt\n&sources=bbc-news,reuters,associated-press,axios,the-verge\n&pageSize=1\n&apiKey=92420180f7ec4c609b29a68b77f1a88e",
+        "options": {}
+      },
+      "id": "<news api key>",
+      "name": "Fetch Drone News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -1504,
+        352
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Drone News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Facebook Graph API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook Graph API2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch account1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Graph API": {
+      "main": [
+        [
+          {
+            "node": "Facebook Graph API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Graph API1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Generate an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Graph API2": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Tweet": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Create Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate an image": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Create Post1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch account1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Post1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Drone News": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "e96a6474-1ba3-45b8-92d9-97ce63755785",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2e40c95b41b3486416f2ae1975e3b71af762581d25fb43935c2758a2ab048f8f"
+  },
+  "id": "O5Qkd7mcMK95hlj1",
+  "tags": []
+}
